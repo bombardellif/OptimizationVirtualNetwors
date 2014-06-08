@@ -16,6 +16,7 @@ class Graph(object):
         '''
         self.vertex = {};
         self.edge = {};
+        self.setOfEdges = set();
         
         file = open(fileName, 'r');
             
@@ -31,14 +32,17 @@ class Graph(object):
                 elif splittedLine[0] == 'E':
                     self.edge[splittedLine[1]][splittedLine[2]] = [int(splittedLine[3]), int(splittedLine[3])];
                     self.edge[splittedLine[2]][splittedLine[1]] = [int(splittedLine[3]), int(splittedLine[3])];
-        
-        print(self.vertex);
-        print(self.edge);
+                    
+                    self.setOfEdges.add((splittedLine[1], splittedLine[2]));
         
     def getCapableVertices(self, minCapacity):
         return [k for k,v in self.vertex.items() if (v[0] >= minCapacity and v[1])];
     
     def getCapablePaths(self, v1, v2, demand):
+        # to make things simpler: check if begin and end are equal
+        if v1 == v2:
+            return [];
+        
         resultPaths = [[v1]];
         ## Local function to help
         def addVertexToAppropriatePaths(vFrom, vTo):
@@ -91,3 +95,32 @@ class Graph(object):
         
         # post processing: remove paths that don't get to the goal "v2"
         return [path for path in resultPaths if path[-1] == v2];
+    
+    def allocateResources(self, vertex0, vertex1, path, pathDemand):
+        # set this vertex as allocated
+        self.vertex[vertex0][1] = False;
+        self.vertex[vertex1][1] = False;
+        
+        # subtract the demand of the path from every edge in this path
+        i = 0;
+        for j in range(1, len(path)):
+            self.edge[path[i]][path[j]][1] -= pathDemand;
+            self.edge[path[j]][path[i]][1] -= pathDemand;
+            
+            i += 1;
+    
+    def freeResources(self, vertex0, vertex1, path, pathDemand):
+        # set this vertex as free
+        if vertex0 != None:
+            self.vertex[vertex0][1] = True;
+        if vertex1 != None:
+            self.vertex[vertex1][1] = True;
+        
+        # add the demand of the path (that has been previously subtracted) in every edge in this path
+        i = 0;
+        for j in range(1, len(path)):
+            self.edge[path[i]][path[j]][1] += pathDemand;
+            self.edge[path[j]][path[i]][1] += pathDemand;
+            
+            i += 1;
+    
