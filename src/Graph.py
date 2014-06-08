@@ -35,8 +35,8 @@ class Graph(object):
                     
                     self.setOfEdges.add((splittedLine[1], splittedLine[2]));
         
-    def getCapableVertices(self, minCapacity):
-        return [k for k,v in self.vertex.items() if (v[0] >= minCapacity and v[1])];
+    def getCapableVertices(self, minCapacity, exceptionVertex=None):
+        return [k for k,v in self.vertex.items() if (v[0] >= minCapacity and v[1] and v[0] != exceptionVertex)];
     
     def getCapablePaths(self, v1, v2, demand):
         # to make things simpler: check if begin and end are equal
