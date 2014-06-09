@@ -6,6 +6,7 @@ Created on 05.06.2014
 from src.Graph import Graph
 from src.VirtualNetworkMapping import VirtualNetworkMapping
 import random
+from math import exp, log
 
 def addPartOfSolution(solution, physicalGraph, virtualEdge, edgeDemand, physicalVertex0, physicalVertex1, physicalPath):
     solution.addPartOfSolution(
@@ -225,25 +226,72 @@ def findNeighbor(solution, gPhysical, gVirtual, numOfTries):
     #end while
     return False;
 
+def initialTemperature(solution, gPhysical, gVirtual, numOfIterations):
+    numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
+    
+    maxVariation = 0;
+    for i in range(1,numOfIterations):
+        
+        newSolution = solution.copy();
+        newGraph = gPhysical.copy();
+        if findNeighbor(newSolution, newGraph, gVirtual, numOfTriesNeighborhood):
+            
+            variation = abs(newSolution.totalUsedBand(gVirtual) - solution.totalUsedBand(gVirtual));
+            if variation > maxVariation:
+                maxVariation = variation;
+    #end for
+    
+    return -maxVariation / (log(0.8));
+
+def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInner, iterMinSuccess, alphaCooler):
+    numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
+    temperature = initialTemperature(solution, gPhysical, gVirtual, int(iterMaxOutter*0.1));
+    
+    j = 1;
+    while j <= iterMaxOutter:
+        successCount = 0;
+        for i in range(1,iterMaxInner):
+            
+            newSolution = solution.copy();
+            newGraph = gPhysical.copy();
+            if findNeighbor(newSolution, newGraph, gVirtual, numOfTriesNeighborhood):
+                
+                variation = newSolution.totalUsedBand(gVirtual) - solution.totalUsedBand(gVirtual);
+                if variation <= 0 or exp(-variation / temperature) > random.random():
+                    solution = newSolution;
+                    gPhysical = newGraph;
+                    successCount += 1;
+        #end inner for
+        
+        temperature *= alphaCooler;
+        print(temperature);
+        j += 1;
+        if successCount < iterMinSuccess:
+            break;
+    
+    return solution;
+
 if __name__ == '__main__':
     virtual = Graph('../data/rand1/vir.gtt');
     physical = Graph('../data/rand1/sub.gtt');
     
     print(virtual.edge);
-    solution = inicializeSolution(physical, virtual);
+    #solution = inicializeSolution(physical, virtual);
     
-    """solution = VirtualNetworkMapping();
+    solution = VirtualNetworkMapping();
     vertices = {'7': '19', '1': '34', '5': '26', '2': '30', '9': '42', '4': '21', '8': '47', '6': '2', '3': '20', '0': '14'};
     edges = {('5', '1'): ['34', '6', '20', '49', '26'], ('0', '8'): ['14', '47'], ('3', '6'): ['20', '6', '25', '31', '13', '2'], ('6', '3'): ['20', '6', '25', '31', '13', '2'], ('2', '4'): ['30', '10', '21'], ('7', '6'): ['2', '46', '43', '10', '19'], ('2', '5'): ['30', '46', '8', '26'], ('4', '2'): ['30', '10', '21'], ('6', '1'): ['34', '24', '2'], ('8', '0'): ['14', '47'], ('1', '5'): ['34', '6', '20', '49', '26'], ('1', '9'): ['34', '6', '20', '0', '15', '42'], ('9', '1'): ['34', '6', '20', '0', '15', '42'], ('6', '7'): ['2', '46', '43', '10', '19'], ('5', '2'): ['30', '46', '8', '26'], ('8', '5'): ['26', '23', '40', '47'], ('5', '8'): ['26', '23', '40', '47'], ('1', '6'): ['34', '24', '2']};
     for k,path in edges.items():
-        addPartOfSolution(solution, physical, k, virtual.edge[k[0]][k[1]][0], vertices[k[0]], vertices[k[1]], path);"""
+        addPartOfSolution(solution, physical, k, virtual.edge[k[0]][k[1]][0], vertices[k[0]], vertices[k[1]], path);
     
     print(solution);
     if solution != None:
         print(solution.vertex);
         print(solution.edge);
-        
-    print(findNeighbor(solution, physical, virtual, 10));
+    
+    print("initial: "+str(solution.totalUsedBand(virtual)));
+    solution = simmulatedAnnealing(solution, physical, virtual, 1000, 1000, 10, 0.9);
+    print("final: "+str(solution.totalUsedBand(virtual)));
     print(solution.vertex);
     print(solution.edge);
     

@@ -4,13 +4,21 @@ Created on 05.06.2014
 @author: fernando
 '''
 from _io import open
+from copy import deepcopy
 
 class Graph(object):
     '''
     classdocs
     '''
+    
+    def copy(self):
+        new = Graph();
+        new.vertex = deepcopy(self.vertex);
+        new.edge = deepcopy(self.edge);
+        new.setOfEdges = deepcopy(self.setOfEdges);
+        return new;
 
-    def __init__(self, fileName):
+    def __init__(self, fileName=None):
         '''
         Constructor
         '''
@@ -18,22 +26,23 @@ class Graph(object):
         self.edge = {};
         self.setOfEdges = set();
         
-        file = open(fileName, 'r');
-            
-        # iterates through the lines of the file
-        for line in file:
-            splittedLine = line.split(None);
-            if len(splittedLine) >= 3:
-                # Vertex
-                if splittedLine[0] == 'V':
-                    self.vertex[splittedLine[1]] = [int(splittedLine[2]), True];
-                    self.edge[splittedLine[1]] = {};
-                # Edge
-                elif splittedLine[0] == 'E':
-                    self.edge[splittedLine[1]][splittedLine[2]] = [int(splittedLine[3]), int(splittedLine[3])];
-                    self.edge[splittedLine[2]][splittedLine[1]] = [int(splittedLine[3]), int(splittedLine[3])];
-                    
-                    self.setOfEdges.add((splittedLine[1], splittedLine[2]));
+        if fileName != None:
+            file = open(fileName, 'r');
+                
+            # iterates through the lines of the file
+            for line in file:
+                splittedLine = line.split(None);
+                if len(splittedLine) >= 3:
+                    # Vertex
+                    if splittedLine[0] == 'V':
+                        self.vertex[splittedLine[1]] = [int(splittedLine[2]), True];
+                        self.edge[splittedLine[1]] = {};
+                    # Edge
+                    elif splittedLine[0] == 'E':
+                        self.edge[splittedLine[1]][splittedLine[2]] = [int(splittedLine[3]), int(splittedLine[3])];
+                        self.edge[splittedLine[2]][splittedLine[1]] = [int(splittedLine[3]), int(splittedLine[3])];
+                        
+                        self.setOfEdges.add((splittedLine[1], splittedLine[2]));
         
     def getCapableVertices(self, minCapacity, exceptionVertex=None):
         return [k for k,v in self.vertex.items() if (v[0] >= minCapacity and v[1] and v[0] != exceptionVertex)];

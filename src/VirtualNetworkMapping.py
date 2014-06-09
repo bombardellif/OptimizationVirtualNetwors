@@ -3,11 +3,18 @@ Created on 05.06.2014
 
 @author: fernando
 '''
+from copy import deepcopy
 
 class VirtualNetworkMapping(object):
     '''
     classdocs
     '''
+    
+    def copy(self):
+        new = VirtualNetworkMapping();
+        new.vertex = deepcopy(self.vertex);
+        new.edge = deepcopy(self.edge);
+        return new;
 
     def __init__(self):
         '''
