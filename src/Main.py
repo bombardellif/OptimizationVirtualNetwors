@@ -245,7 +245,7 @@ def initialTemperature(solution, gPhysical, gVirtual, numOfIterations):
 
 def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInner, iterMinSuccess, alphaCooler):
     numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
-    temperature = initialTemperature(solution, gPhysical, gVirtual, int(iterMaxOutter*0.1));
+    temperature = initialTemperature(solution, gPhysical, gVirtual, int(iterMaxOutter));
     
     j = 1;
     while j <= iterMaxOutter:
@@ -290,7 +290,7 @@ if __name__ == '__main__':
         print(solution.edge);
     
     print("initial: "+str(solution.totalUsedBand(virtual)));
-    solution = simmulatedAnnealing(solution, physical, virtual, 1000, 1000, 10, 0.9);
+    solution = simmulatedAnnealing(solution, physical, virtual, 10, 100, 10, 0.9);
     print("final: "+str(solution.totalUsedBand(virtual)));
     print(solution.vertex);
     print(solution.edge);
