@@ -7,6 +7,7 @@ from src.Graph import Graph
 from src.VirtualNetworkMapping import VirtualNetworkMapping
 import random
 from math import exp, log
+from pip.status_codes import SUCCESS
 
 def addPartOfSolution(solution, physicalGraph, virtualEdge, edgeDemand, physicalVertex0, physicalVertex1, physicalPath):
     solution.addPartOfSolution(
@@ -160,41 +161,50 @@ def inicializeSolution(gPhysical, gVirtual):
     else:
         return None;
 
-def findNeighbor(solution, gPhysical, gVirtual, numOfTries):
+def findNeighbor(originalSolution, originalGPhysical, gVirtual, numOfTries):
     
     count = 0;
     while count < numOfTries:
+        solution = originalSolution.copy();
+        gPhysical = originalGPhysical.copy();
         # choose a random vertex from the virtual graph
-        chosenEdge = random.choice(list(gVirtual.setOfEdges));
-        edgeDemand = gVirtual.edge[chosenEdge[0]][chosenEdge[1]][0];
+        chosenVertex = random.choice(list(gVirtual.vertex.keys()));
         
-        # remove these chosen vertices and edge from the solution
-        backupMappedVertex = [];
-        backupMappedVertex.append(solution.vertex[chosenEdge[0]]);
-        backupMappedVertex.append(solution.vertex[chosenEdge[1]]);
-        backupMappedEdge = solution.edge[chosenEdge];
-        removePartOfSolution(
-            solution,
-            gPhysical,
-            chosenEdge,
-            edgeDemand,
-            backupMappedVertex[0],
-            backupMappedVertex[1],
-            backupMappedEdge
-        );
+        backupMappedVertices = {
+            chosenVertex: solution.vertex[chosenVertex]
+        };
         
-        # tries first with one of the vertex of this edge, if doesn't find a possible solution, then tries with the other
-        for i in range(0,2):
-            # if "i" is 0, the "j" is 1, and vice-versa 
-            j = (i + 1) % 2;
+        # for each adjacent virtual edge of the chosen vertex, remove the physical path from the solution
+        firstLoop = True;
+        for neighborVertex in gVirtual.edge[chosenVertex].keys():
+            virtualEdge = (chosenVertex, neighborVertex);
+            edgeDemand = gVirtual.edge[chosenVertex][neighborVertex][0];
             
-            # iterate over every possible physical vertex to allocate this virtual 
-            candidateVertices = gPhysical.getCapableVertices(gVirtual.vertex[chosenEdge[i]][0], backupMappedVertex[i]);
+            backupMappedVertices[neighborVertex] = solution.vertex[neighborVertex];
+            
+            removePartOfSolution(
+                solution,
+                gPhysical,
+                virtualEdge,
+                edgeDemand,
+                (solution.vertex[chosenVertex] if firstLoop else None),
+                None,
+                solution.edge[virtualEdge]
+            );
+            firstLoop = False;
+        
+        success = False;
+        # for each adjacent virtual edge of the chosen vertex, try to establish a physical path
+        for neighborVertex in gVirtual.edge[chosenVertex].keys():
+            virtualEdge = (chosenVertex, neighborVertex);
+            edgeDemand = gVirtual.edge[chosenVertex][neighborVertex][0];
+            
+            # iterate over every possible physical vertex to allocate this virtual
+            success = False; 
+            candidateVertices = gPhysical.getCapableVertices(gVirtual.vertex[chosenVertex][0], backupMappedVertices[chosenVertex]);
             for possibleVertex in candidateVertices:
                 
-                physicalMapped = backupMappedVertex[j];
-                candidatePaths = gPhysical.getCapablePaths(possibleVertex, physicalMapped, edgeDemand);
-                
+                candidatePaths = gPhysical.getCapablePaths(possibleVertex, backupMappedVertices[neighborVertex], edgeDemand);
                 if len(candidatePaths) > 0:
                     # get random feasible path between the two vertices
                     newPath = random.choice(candidatePaths);
@@ -202,29 +212,24 @@ def findNeighbor(solution, gPhysical, gVirtual, numOfTries):
                     addPartOfSolution(
                         solution,
                         gPhysical,
-                        chosenEdge,
+                        virtualEdge,
                         edgeDemand,
                         possibleVertex,
-                        backupMappedVertex[j],
+                        backupMappedVertices[neighborVertex],
                         newPath
                     );
-                    return True;
-        #end for
-        
-        # if it wasn't possible to find a possible solution, then undo any change in the solution and return False
-        addPartOfSolution(
-            solution,
-            gPhysical,
-            chosenEdge,
-            edgeDemand,
-            backupMappedVertex[0],
-            backupMappedVertex[1],
-            backupMappedEdge
-        );
+                    success = True;
+                    break;
+            #end for
             
+            if not success:
+                break;
+        #end for
+        if success:
+            return (solution, gPhysical);
         count += 1;
     #end while
-    return False;
+    return None;
 
 def initialTemperature(solution, gPhysical, gVirtual, numOfIterations):
     numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
@@ -232,16 +237,16 @@ def initialTemperature(solution, gPhysical, gVirtual, numOfIterations):
     maxVariation = 0;
     for i in range(1,numOfIterations):
         
-        newSolution = solution.copy();
-        newGraph = gPhysical.copy();
-        if findNeighbor(newSolution, newGraph, gVirtual, numOfTriesNeighborhood):
+        neighbor = findNeighbor(solution, gPhysical, gVirtual, numOfTriesNeighborhood);
+        if neighbor != None:
+            newSolution = neighbor[0];
             
             variation = abs(newSolution.totalUsedBand(gVirtual) - solution.totalUsedBand(gVirtual));
             if variation > maxVariation:
                 maxVariation = variation;
     #end for
     
-    return -maxVariation / (log(0.8));
+    return -maxVariation / (log(0.9));
 
 def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInner, iterMinSuccess, alphaCooler):
     numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
@@ -252,10 +257,11 @@ def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInn
         successCount = 0;
         for i in range(1,iterMaxInner):
             
-            newSolution = solution.copy();
-            newGraph = gPhysical.copy();
-            if findNeighbor(newSolution, newGraph, gVirtual, numOfTriesNeighborhood):
-                
+            neighbor = findNeighbor(solution, gPhysical, gVirtual, numOfTriesNeighborhood);
+            if neighbor != None:
+                newSolution = neighbor[0];
+                newGraph = neighbor[1];
+            
                 variation = newSolution.totalUsedBand(gVirtual) - solution.totalUsedBand(gVirtual);
                 if variation <= 0 or exp(-variation / temperature) > random.random():
                     solution = newSolution;
@@ -265,6 +271,7 @@ def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInn
         
         temperature *= alphaCooler;
         print(temperature);
+        print(solution.totalUsedBand(gVirtual));
         j += 1;
         if successCount < iterMinSuccess:
             break;
@@ -290,7 +297,7 @@ if __name__ == '__main__':
         print(solution.edge);
     
     print("initial: "+str(solution.totalUsedBand(virtual)));
-    solution = simmulatedAnnealing(solution, physical, virtual, 10, 100, 10, 0.9);
+    solution = simmulatedAnnealing(solution, physical, virtual, 500, 100, 10, 0.99);
     print("final: "+str(solution.totalUsedBand(virtual)));
     print(solution.vertex);
     print(solution.edge);
