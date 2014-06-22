@@ -108,7 +108,20 @@ Por fim, esse é um problema que vem sendo constantemente pesquisado, uma vez qu
 %	Formulação
 %----------------------------------------------------------------------------------------
 \section{Formulação}
-Sejam $(V^{S},E^{S})$ o grafo do substrato físico, $(V^{V},E^{V})$ o grafo da rede virtual, os parâmetros $c_{v}$ e $c_{e}$, respectivamente, as capacidades dos vértices e das arestas do substrato, e os parâmetros $d_{v}$ e $d_{e}$, respectivamente, as demandas dos vértices e das arestas do grafo virtual. Tem-se abaixo uma possível formulação em programa linear para o problema de otimização.
+Sejam $(V^{S},E^{S})$ o grafo do substrato físico, $(V^{V},E^{V})$ o grafo da rede virtual, os parâmetros $c_{v}$ e $c_{e}$, respectivamente, as capacidades dos vértices e das arestas do substrato, e os parâmetros $d_{v}$ e $d_{e}$, respectivamente, as demandas dos vértices e das arestas do grafo virtual. Abaixo há uma possível formulação em programa linear para o problema de otimização.
+
+Observação sobre as restrições:
+\begin{itemize}
+\item A primeira restrição garante que cada nó do substrato tem no máximo 1 virtual mapeado.
+\item A segunda garante que todos os nós virtuais tem algum físico mapeado.
+\item A terceira garante que todo nó físico tenha a capacidade de ser alocado para o seu respectivo nó virtual.
+\item A quarta restrição basicamente define o valor da variável \emph{a} que é a quantidade de banda alocada no nó físico.
+\item A quinta garante que cada aresta virtual tem ao menos uma aresta no caminho físico mapeado.
+\item A sexta garante que a alocação de uma aresta física não extrapole sua capacidade.
+\item A sétima e a oitava garantem que cada vértice físico que foi mapeado para algum virtual, tenha alguma aresta adjacente que pertença ao caminho da aresta virtual respectiva.
+\item A nona, a décima e a décima primeira restringem o valor de \emph{b} de modo que seja 1 se, e somente se, seu vértice físico correspondente esteja mapeado ao respectivo vértice virtual, ou seja, esse vértice é um início, ou fim, de um caminho.
+\item As duas últimas, são as que garantem que existe uma caminho entre as arestas físicas relativas a vértices virtuais adjacentes entre si. Ou seja, para todas as arestas virtuais e todos os vértices físicos pertencentes ao caminho mapeado por essa aresta virtual, o grau de cada vértice é 2, exceto o grau dos vértices de inicio e fim do caminho, cujo valor deve ser 1. Essa modelagem foi obtida com o auxílio de \cite{ABSOLUTE}.
+\end{itemize}
 
 \begin{center}
 \minproblem*{\sum_{e \in E^{S}} a_{e}}{
@@ -202,8 +215,8 @@ Para a escolha dos parâmetro do algoritmo foram realizadas execuções experime
 	Mínimo de iterações sem sucesso	& 10 	\\ \hline
 	Coeficiente de resfriamento		& 0.99	\\ \hline
 \end{tabular}
-\label{tab:Parametros}
 \caption{Parâmetros do Algoritmo}
+\label{tab:Parametros}
 \end{table}
 
 Na Tabela \ref{tab:Resultado} pode-se observar que todas as instâncias ficaram distantes do valor ótimo. Esse resultado deve-se principalmente ao fato de que o algoritmo de perturbação não explora um espaço do soluções muito além da solução inicial. Outra evidência para esse fato é que foi observado que a parada do programa ocorre pela condição do limite de iterações sem melhoria, ou seja, isto evidencia o fato da falta de variabilidade das soluções testadas. Portanto, o aumento do limite de iterações não deve mudar os resultados.
@@ -224,24 +237,30 @@ Na Tabela \ref{tab:Resultado} pode-se observar que todas as instâncias ficaram 
 	ts4		& 	& 	& 	& 	& 	\\ \hline
 	ts5		& 	& 	& 	& 	& 	\\ \hline
 \end{tabular}
-\label{tab:Resultado}
 \caption{Resultados das Computações}
+\label{tab:Resultado}
 \end{table}
 
 %----------------------------------------------------------------------------------------
 %	Conclusão
 %----------------------------------------------------------------------------------------
 \section{Conclusão}
-A constante atualização de Java demonstra o interesse e o cuidado dos mantenedores para com a linguagem e refletem o amplo interesse do mercado. Em especial, a preocupação em trazer conceitos do paradigma funcional para a linguagem levanta amplas discussões acadêmicas sobre o que é interessante de ser aplicado em uma linguagem de uso comercial, como Java, e o que mais pode ser construído a nível de linguagens de programação que possa contribuir para facilitar o desenvolvimento de software, resolvendo problemas atuais de engenharia de software, como garantia de qualidade, documentação, fácil implementação de testes e exploração dos recursos de hardware, como paralelismo e homogeneidade.
+No geral, com esse trabalho de implementação da meta-heurística \emph{Simulated Annealing} é possível perceber a dificuldade que é desenvolver esse tipo de solução para um problema NP-Difícil, como o mapeamento de redes virtuais. Primeiramente, por ser um problema com muitas restrições na factibilidade, a própria busca por uma solução inicial já se mostra complicada e não trivial.
 
-Não há grandes dificuldades para analisar a linguagem de programação Java 8, pois a documentação da linguagem facilita o acesso às suas definições e características. A parte que exige mais é, naturalmente, a análise crítica da linguagem, que é um processo muito pessoal e pouco exato, fortemente tendenciado pelas experiências prévias dos autores.
+Além disso, definir um algoritmo de vizinhança que tenha a propriedade de ser completo (conectado) também não é trivial. A desconectividade, tanto do grafo substrato quanto do virtual, pode ser um agravante para a definição daquele. Esse fato ficou evidente nessa implementação, que não permitiu que o algoritmo explorasse soluções muito distantes da inicial, levando a uma eficácia ruim por parte do programa.
+
+Também, é notável que, a resolução de um programa linear desse tipo por \emph{solvers} genéricos é inviável na prática. Esse tipo de solução pode exigir um longo tempo e uma grande capacidade da máquina em termos de processamento e memória. Uma maneira por onde pode-se obter resultados melhores é formular o programa linear de uma maneira alternativa à proposta neste documento, porém isso exige um conhecimento mais profundo dos mecanismos utilizados pelo \emph{solver} para a busca da solução, além de uma grande habilidade por parte do programador.
+
+Com tudo, soluções para esse problema requerem que a aplicação tenha intrinsecamente um conhecimento sobre as propriedades dele e de suas possíveis instâncias. Isso reflete diretamente sobre as decisões que devem ser tomadas na fase de desenvolvimento do algoritmo, como algoritmos de solução inicial e perturbação.
+
+Por fim, verifica-se que as aplicações de métodos estocásticos na computação tem gerado bons resultados, principalmente na área de otimização combinatória, onde as heurísticas geralmente tem um componente não-determinístico (geração de valor pseudo-randômico). Na meta-heurística \emph{Simulated Annealing}, além da característica estocástica, também está presente a influência do método de Monte Carlo, geralmente usado em simulações físicas e matemáticas, porém comum grande aplicação em algoritmos de otimização.
 
 %----------------------------------------------------------------------------------------
 %	Bibliografia
 %----------------------------------------------------------------------------------------
 \begin{thebibliography}{1}
 \bibitem{Melo}
-	Melo, M.; J. Carapinha; Sargento, S.; L. Torres; N. Tran-Phuong; U. Killat Killat; A. Timm-Giel;
+	Melo, M.; Carapinha, J.; Sargento, S.; Torres, L.; Tran-Phuong, N.; Killat Killat, U.; Timm-Giel, A.;
 	\emph{Virtual Network Mapping - An Optimization Problem}.
 	Conference on Mobile Networks and Management (MONAMI).
 	Aveiro, Portugal, 2011.
@@ -266,7 +285,7 @@ Não há grandes dificuldades para analisar a linguagem de programação Java 8,
 	\emph{AIMMS Modeling Guide - Linear Programming Tricks}.
 	Disponível em: $<$http://www.aimms.com/aimms/download/manuals/aimms3om\_linearprogrammingtricks.pdf$>$.
 	1993.
-\bibitem{}
+\bibitem{ABSOLUTE}
 	Lp Solve Reference Guide.
 	\emph{Absolute Values}.
 	Disponível em: $<$http://lpsolve.sourceforge.net/5.1/absolute.htm$>$.
@@ -280,7 +299,13 @@ Não há grandes dificuldades para analisar a linguagem de programação Java 8,
 	Python Software Foundation.
 	\emph{Python 3.4.1 documentation}.
 	Disponível em: $<$https://docs.python.org/3/$>$.
-	Acesso em: Maio de 2014.
+	Acesso em: Junho de 2014.
+\bibitem{}
+	Wikipedia.
+	\emph{Monte Carlo method}.
+	Disponível em: $<$http://en.wikipedia.org/wiki/Monte\_Carlo\_method$>$.
+	Acesso em: Junho de 2014.
+
 
 \end{thebibliography}
 
