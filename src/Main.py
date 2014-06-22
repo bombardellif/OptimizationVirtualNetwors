@@ -38,7 +38,7 @@ def removePartOfSolution(solution, physicalGraph, virtualEdge, edgeDemand, physi
     );
 
 numberOfCalls = 0;
-CALLS_THREASHOLD = 2000;
+CALLS_THREASHOLD = 10000;
 def mapInitialSolution(virtualEdge, currentSolution, alreadyMappedEdges, gPhysical, gVirtual):
     global numberOfCalls;
     global CALLS_THREASHOLD;
