@@ -1,0 +1,287 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass{article}
+
+\usepackage[brazilian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx} % Required to insert images
+\usepackage{float}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\graphicspath{ {img/} }
+
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in 
+
+\linespread{1.1} % Line spacing
+
+%----------------------------------------------------------------------------------------
+%	Macros para definir programa linear
+%----------------------------------------------------------------------------------------
+\makeatletter
+\newcommand{\minproblem}{\@ifstar\minproblemstar\minproblemplain}
+\newcommand{\minproblemplain}[3][]{
+  \begin{align}
+    \text{#1}\textbf{minimiza}\qquad & #2\\
+    \textbf{subjeito a}\qquad & #3
+  \end{align}
+}
+\newcommand{\minproblemstar}[3][]{
+  \begin{align*}
+    \text{#1}\textbf{minimiza}\qquad & #2\\
+    \textbf{subjeito a}\qquad & #3
+  \end{align*}
+}
+\newcommand{\maxproblem}{\@ifstar\maxproblemstar\maxproblemplain}
+\newcommand{\maxproblemplain}[3][]{
+  \begin{align}
+    \text{#1}\textbf{maximiza}\qquad & #2\\
+    \textbf{subjeito a}\qquad & #3
+  \end{align}
+}
+\newcommand{\maxproblemstar}[3][]{
+  \begin{align*}
+    \text{#1}\textbf{maximiza}\qquad & #2\\
+    \textbf{subjeito a}\qquad & #3
+  \end{align*}
+}
+\makeatother
+
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\title{
+\Large{
+UNIVERSIDADE FEDERAL DO RIO GRANDE DO SUL\\
+Instituto de Informática
+}\\
+\vspace{6cm}\textbf{Aplicação da Meta-heurística Simulated Annealing para solução do problema de Mapeamento de Redes Virtuais}\\
+}
+
+\author{
+\vspace{4cm}\\
+\vspace{4cm}Fernando Bombardelli da Silva (fbdasilva@inf.ufrgs.br)\\
+}
+
+\date{23 de Junho de 2014} % Insert date here if you want it to appear below your name
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+\pagenumbering{gobble} 
+\maketitle
+
+%----------------------------------------------------------------------------------------
+%	TABLE OF CONTENTS
+%----------------------------------------------------------------------------------------
+
+%\setcounter{tocdepth}{1} % Uncomment this line if you don't want subsections listed in the ToC
+
+\newpage
+\pagenumbering{arabic}
+\tableofcontents
+\newpage
+
+%----------------------------------------------------------------------------------------
+%	Introdução
+%----------------------------------------------------------------------------------------
+\section{Introdução}
+Este documento tem como objetivo mostrar a implementação de uma solução para um problema de otimização, expondo as ideias principais, as definições realizadas, as escolhas tomadas e os problemas enfrentados.
+
+Nesse texto será apresentada uma solução ao problema do mapeamento de redes virtuais. De modo geral, o problema do mapeamento de redes virtuais consiste em definir: um mapeamento dos vértices de um grafo chamado de virtual para os vértices de um grafo chamado de físico (ou substrato), dadas restrições de capacidade de processamento dos nodos; e um mapeamento de cada aresta do grafo virtual para um caminho do substrato, dadas restrições de banda, conectando portanto os seus respectivos vértices mapeados. A problema de otimização consiste em minimizar a soma de banda total utilizada pelo mapeamento e ele é um problema NP-Difícil \cite{Melo}.
+
+A fim de aproximar a solução ótima do problema em um conjunto de instâncias dadas, escolheu-se a meta-heurística de \emph{Simulated Annealing}. Essa meta-heurística consiste em simular um processo físico de arrefecimento lento e gradual de um sistema para tentar otimizar o objetivo do problema modelado. Ela é baseada no algoritmo \emph{Metropolis}, um método de \emph{Monte Carlo}.
+
+Por fim, esse é um problema que vem sendo constantemente pesquisado, uma vez que existe uma aplicação direta nas áreas de redes e telecomunicações, e até então as soluções propostas não têm sido eficientes o suficiente, requerendo alto poder de processamento. Com tudo, Redes virtuais tem ganhado muita importância, e pode vir a constituir uma próxima arquitetura da Internet \cite{Melo}.
+
+%----------------------------------------------------------------------------------------
+%	Formulação
+%----------------------------------------------------------------------------------------
+\section{Formulação}
+Sejam $(V^{S},E^{S})$ o grafo do substrato físico, $(V^{V},E^{V})$ o grafo da rede virtual, os parâmetros $c_{v}$ e $c_{e}$, respectivamente, as capacidades dos vértices e das arestas do substrato, e os parâmetros $d_{v}$ e $d_{e}$, respectivamente, as demandas dos vértices e das arestas do grafo virtual. Tem-se abaixo uma possível formulação em programa linear para o problema de otimização.
+
+\begin{center}
+\minproblem*{\sum_{e \in E^{S}} a_{e}}{
+	\sum_{v^{V} \in V^{V}} r_{v^{S},v^{V}} \leq 1 					& \forall v^{S} \in V^{S} \\
+    & \sum_{v^{S} \in V^{S}} r_{v^{S},v^{V}} = 1 					& \forall v^{V} \in V^{V} \\
+    & r_{v^{S},v^{V}} \cdot d_{v^{V}} \leq c_{v^{S}}      			& \forall v^{S} \in V^{S},\forall v^{V} \in V^{V} \\
+    & a_{e} = \sum_{e^{V} \in E^{V}} d_{e^{V}} \cdot l_{e,e^{V}}	& \forall e \in E^{S} \\
+    & \sum_{e^{S} \in E^{S}} l_{e^{S},e^{V}} \geq 1 				& \forall e^{V} \in E^{V} \\
+    & a_{e} \leq c_{e}												& \forall e \in E^{S} \\
+    & r_{v^{S},v^{V}_{1}} \leq \sum_{v^{S'} \in N(v^{S})} l_{(v^{S},v^{S'}),(v^{V}_{1},v^{V}_{2})}			& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & r_{v^{S},v^{V}_{2}} \leq \sum_{v^{S'} \in N(v^{S})} l_{(v^{S},v^{S'}),(v^{V}_{1},v^{V}_{2})}			& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & r_{v^{S},v^{V}_{1}} \leq b_{v^{V}_{1},v^{V}_{2},v^{S}} 						& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+	& r_{v^{S},v^{V}_{2}} \leq b_{v^{V}_{1},v^{V}_{2},v^{S}} 						& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & r_{v^{S},v^{V}_{1}} + r_{v^{S},v^{V}_{2}} \geq b_{v^{V}_{1},v^{V}_{2},v^{S}}	& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & ((\sum_{v^{S'} \in N(v^{S})} l_{(v^{S},v^{S'}),(v^{V}_{1},v^{V}_{2})})-1) + 2 \cdot N_{(v^{V}_{1},v^{V}_{2}), v^{S}} \geq 1 - b_{v^{V}_{1},v^{V}_{2},v^{S}} 				& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & -((\sum_{v^{S'} \in N(v^{S})} l_{(v^{S},v^{S'}),(v^{V}_{1},v^{V}_{2})})-1) + 2 \cdot (1-N_{(v^{V}_{1},v^{V}_{2}), v^{S}}) \geq 1 - b_{v^{V}_{1},v^{V}_{2},v^{S}} 				& \forall (v^{V}_{1},v^{V}_{2}) \in E^{V}, \forall v^{S} \in V^{S} \\
+    & a_{e} \in \mathbb{R}_{\geq 0} 			& \forall e \in E^{S}\\
+    & r_{v^{S},v^{V}} \in \mathbb{B} 			& \forall v^{S} \in V^{S}, \forall v^{V} \in V^{V}\\
+    & l_{e^{S},e^{V}} \in \mathbb{B} 			& \forall e^{S} \in E^{S}, \forall e^{V} \in E^{V}\\
+    & b_{e^{V},v^{S}} \in \mathbb{B} 			& \forall e^{V} \in E^{V}, \forall v^{S} \in V^{S}\\
+    & N_{e^{V},v^{S}} \in \mathbb{B} 			& \forall e^{V} \in E^{V}, \forall v^{S} \in V^{S}\\
+}
+\end{center}
+
+%----------------------------------------------------------------------------------------
+%	Descrição da Solução
+%----------------------------------------------------------------------------------------
+\section{Descrição da Solução}
+\subsection{Representação da Solução}
+Nessa proposta, uma solução para o problema do mapeamento de redes virtuais será definida como um par ordenado \textbf{\emph{(f(v), g(e))}}, onde \textbf{\emph{\(v \in V^{V}\)}} e \textbf{\emph{\(e \in E^{V}\)}}. Ou seja, o primeiro componente representa uma função, cujo domínio é o conjunto de vértices virtuais e o contra-domínio é o conjunto de vértices físicos; e o segundo componente representa uma função, cujo domínio é o conjunto de arestas virtuais e o contra-domínio é o conjunto de todas as tuplas que representem caminhos entre as arestas físicas.
+
+\subsection{Função Objetivo}
+O cálculo da função objetivo é relativamente simples nessa estrutura, basta que se realize o somatório da multiplicação da demanda de cada vértice do grafo virtual com o número de vértices presentes no caminho físico respectivo àquele vértice. Ou seja:
+
+\begin{displaymath}
+\sum_{e \in E^{V}} d_{e} \cdot NroVertices(g(e))
+\end{displaymath}
+
+\subsection{Solução Inicial}
+Por ser um problema bem restritivo, a própria busca por uma solução inicial já é complexa. Nessa implementação, é feito uma busca por força bruta na árvore das combinações de mapeamentos entre os grafos. Porém, para evitar que se percorra ramos da árvore que não levam a soluções factíveis, o processo de busca por mapeamentos segue a estrutura do grafo virtual, fazendo com que após o estabelecimento de uma parte da solução inicial, o algoritmo siga para um vértice vizinho desse grafo, percorrendo-o pelas adjacências.
+
+Uma proposta possível para o algoritmo de solução inicial é realizar alguma análise topológica dos grafos, e, portanto, a partir dela inferir soluções iniciais de maneira mais eficiente e melhor para a convergência do processo à solução ótima.
+
+\subsection{Vizinhança}
+O algoritmo de vizinhança para o problema do mapeamento de redes virtuais é vital para se conseguir a convergência do método. Porém, pelo número de restrições da solução factível, criar uma algoritmo de vizinhança que consiga explorar todo o espaço de soluções independentemente da solução inicial pode ser uma tarefa realmente difícil, além de poder requerer um alto poder de processamento e uma grande quantidade de código.
+
+Nessa implementação utilizou-se um algoritmo que segue os seguintes passos:
+\begin{enumerate}
+\item Seleciona randomicamente um vértice virtual;
+\item Remove-o da solução, assim como os caminho referentes aos vértices adjacentes a ele;
+\item Randomiza um novo vértice físico capaz de ser alocado para este vértice virtual;
+\item Para cada vértice adjacente ao virtual, tenta estabelecer um caminho ao novo vértice físico, em caso de não possibilidade, voltar ao passo 1 e repetir os passos até que alcance um limite de iterações ou uma solução factível seja encontrada.
+\end{enumerate}
+
+Esse procedimento de perturbação da solução requer um parâmetro de limite de tentativas de se encontrar um vizinho, uma boa ideia é escolher valor em função do tamanho do grafo virtual. Nessa implementação se escolheu a metade do número de vértices.
+
+Note que esse método é insuficiente para se cobrir uma boa parte do espaço de soluções. Para isto basta supor um grafo físico não totalmente conexo. Uma vez que um componente conexo do grafo virtual estiver estabelecido dentro de um componente conexo do físico, a perturbação da vizinhança não possibilitará que, com as iterações, o grafo virtual venha a explorar o físico inteiramente.
+
+\subsection{Temperatura Inicial}
+Para estipular a temperatura inicial, dada uma entrada, é executada uma versão reduzida do \emph{Simulated Annealing}, na qual se obtém a maior variação da função objetivo, que ocorre entre a solução inicial e os vizinhos gerados pelo algoritmos de perturbação. Com essa variação se calcula uma temperatura inicial que levará a uma probabilidade \emph{p} de se realizar uma troca na primeira iteração da otimização. Essa temperatura pode ser obtida pela seguinte fórmula:
+
+\begin{displaymath}
+\frac{-variacaoMaxima}{\ln p}
+\end{displaymath}
+
+\subsection{Critério de Parada}
+Ficaram estabelecidos dois critérios de parada, que são informados por parâmetro:
+\begin{enumerate}
+\item Ocorrer uma iteração mais externa com um número de melhorias na solução seja menor do que o limiar;
+\item o número de iterações externas atingir um máximo estipulado.
+\end{enumerate}
+O algoritmo para assim que alguma dessas condições for verdadeira.
+
+%----------------------------------------------------------------------------------------
+%	Resultados
+%----------------------------------------------------------------------------------------
+\section{Resultados Obtidos}
+Como parte da resolução do problema, foi desenvolvido um programa linear na linguagem AMPL \cite{AMPL}, que foi executado no \emph{solver GLPK} da \emph{GNU} \cite{GLPK}. Porém para qualquer uma das instâncias o solver executou por um longo tempo, até chegar ao limite de memória da máquina, não apresentando portanto nenhum resultado ótimo.
+
+Também foi desenvolvido um programa na linguagem Python 3 \cite{PYTHON}, implementando a meta-heurística \emph{Simullated Annealing} com as definições mostradas acima.
+
+Para a escolha dos parâmetro do algoritmo foram realizadas execuções experimentais, ajustando-se os valores de modo a obter um processo de resfriamento lento e com iterações suficientes para se chegar a um resultado desejável. Segue abaixo a tabela com os valores estabelecidos por padrão, muito embora o programa aceite valores diferentes na passagens dos argumentos.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l | r |}
+	\hline
+	\textbf{Parâmetro} & \textbf{Valor} \\ \hline
+	Iterações externas		& 1000	\\ \hline
+	Iterações internas		& 300	\\ \hline
+	Mínimo de iterações sem sucesso	& 10 	\\ \hline
+	Coeficiente de resfriamento		& 0.99	\\ \hline
+\end{tabular}
+\label{tab:Parametros}
+\caption{Parâmetros do Algoritmo}
+\end{table}
+
+Na Tabela \ref{tab:Resultado} pode-se observar que todas as instâncias ficaram distantes do valor ótimo. Esse resultado deve-se principalmente ao fato de que o algoritmo de perturbação não explora um espaço do soluções muito além da solução inicial. Outra evidência para esse fato é que foi observado que a parada do programa ocorre pela condição do limite de iterações sem melhoria, ou seja, isto evidencia o fato da falta de variabilidade das soluções testadas. Portanto, o aumento do limite de iterações não deve mudar os resultados.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l | r | r | r | r | r|}
+	\hline
+	\textbf{Inst.} & \textbf{Sol.Inicial.} & \textbf{Sol.Final.} & \textbf{Desvio à S. Ini.} & \textbf{Desvio à S. Ótima} & \textbf{Tempo (min.)} \\ \hline
+	sub1	& 1236	& 874	& 29,29\%	& 228,57\%	& 25	\\ \hline
+	sub2	& 2232	& 1512	& 32,26\%	& 440,00\%	& 50	\\ \hline
+	sub3	& 3414	& 2226	& 34,8\%	& 428,74\%	& 39	\\ \hline
+	sub4	& 3602	& 3602 	& 0,0\%		& 456,72\%	& 90	\\ \hline
+	sub5	& 2728	& 2178	& 20,16\%	& 379,74\%	& 44	\\ \hline
+	ts1		& 	& 	& 	& 	& 	\\ \hline
+	ts2		& 	& 	& 	& 	& 	\\ \hline
+	ts3		& 	& 	& 	& 	& 	\\ \hline
+	ts4		& 	& 	& 	& 	& 	\\ \hline
+	ts5		& 	& 	& 	& 	& 	\\ \hline
+\end{tabular}
+\label{tab:Resultado}
+\caption{Resultados das Computações}
+\end{table}
+
+%----------------------------------------------------------------------------------------
+%	Conclusão
+%----------------------------------------------------------------------------------------
+\section{Conclusão}
+A constante atualização de Java demonstra o interesse e o cuidado dos mantenedores para com a linguagem e refletem o amplo interesse do mercado. Em especial, a preocupação em trazer conceitos do paradigma funcional para a linguagem levanta amplas discussões acadêmicas sobre o que é interessante de ser aplicado em uma linguagem de uso comercial, como Java, e o que mais pode ser construído a nível de linguagens de programação que possa contribuir para facilitar o desenvolvimento de software, resolvendo problemas atuais de engenharia de software, como garantia de qualidade, documentação, fácil implementação de testes e exploração dos recursos de hardware, como paralelismo e homogeneidade.
+
+Não há grandes dificuldades para analisar a linguagem de programação Java 8, pois a documentação da linguagem facilita o acesso às suas definições e características. A parte que exige mais é, naturalmente, a análise crítica da linguagem, que é um processo muito pessoal e pouco exato, fortemente tendenciado pelas experiências prévias dos autores.
+
+%----------------------------------------------------------------------------------------
+%	Bibliografia
+%----------------------------------------------------------------------------------------
+\begin{thebibliography}{1}
+\bibitem{Melo}
+	Melo, M.; J. Carapinha; Sargento, S.; L. Torres; N. Tran-Phuong; U. Killat Killat; A. Timm-Giel;
+	\emph{Virtual Network Mapping - An Optimization Problem}.
+	Conference on Mobile Networks and Management (MONAMI).
+	Aveiro, Portugal, 2011.
+\bibitem{}
+	Xiaoling Li; Changguo Guo; Huaimin Wang; Zhendong Li; Zhiwen Yang;
+	\emph{A constraint optimization based virtual network mapping method}.
+	International Conference on Graphic and Image Processing (ICGIP).
+	Singapore, Singapore, 2012.
+\bibitem{}
+	Peterson, Carsten; Söderberg, Bo;
+	\emph{A New Method For Mapping Optimization Problems Onto Neural Networks}.
+	International Journal of Neural Systems.
+	1989.
+\bibitem{AMPL}
+	Fourer, Robert; Gay, David M.; Kernighan, Brian W.;
+	\emph{AMPL: A Modeling Language for Mathematical Programming}.
+	2$^{nd}$ Ed.
+	Disponível em: $<$http://ampl.com/resources/the-ampl-book/$>$.
+	2003.
+\bibitem{}
+	Paragon Decision Technology.
+	\emph{AIMMS Modeling Guide - Linear Programming Tricks}.
+	Disponível em: $<$http://www.aimms.com/aimms/download/manuals/aimms3om\_linearprogrammingtricks.pdf$>$.
+	1993.
+\bibitem{}
+	Lp Solve Reference Guide.
+	\emph{Absolute Values}.
+	Disponível em: $<$http://lpsolve.sourceforge.net/5.1/absolute.htm$>$.
+	Acesso em: Junho de 2014.
+\bibitem{GLPK}
+	Free Software Foudation.
+	\emph{GLPK - GNU Project}.
+	Disponível em: $<$http://www.gnu.org/software/glpk/$>$.
+	Acesso em: Maio de 2014.
+\bibitem{PYTHON}
+	Python Software Foundation.
+	\emph{Python 3.4.1 documentation}.
+	Disponível em: $<$https://docs.python.org/3/$>$.
+	Acesso em: Maio de 2014.
+
+\end{thebibliography}
+
+\end{document}
