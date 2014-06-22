@@ -7,7 +7,8 @@ from src.Graph import Graph
 from src.VirtualNetworkMapping import VirtualNetworkMapping
 import random
 from math import exp, log
-from pip.status_codes import SUCCESS
+import sys
+import datetime
 
 def addPartOfSolution(solution, physicalGraph, virtualEdge, edgeDemand, physicalVertex0, physicalVertex1, physicalPath):
     solution.addPartOfSolution(
@@ -193,16 +194,15 @@ def findNeighbor(originalSolution, originalGPhysical, gVirtual, numOfTries):
             );
             firstLoop = False;
         
-        success = False;
-        # for each adjacent virtual edge of the chosen vertex, try to establish a physical path
-        for neighborVertex in gVirtual.edge[chosenVertex].keys():
-            virtualEdge = (chosenVertex, neighborVertex);
-            edgeDemand = gVirtual.edge[chosenVertex][neighborVertex][0];
+        # iterate over every possible physical vertex to allocate this virtual
+        candidateVertices = gPhysical.getCapableVertices(gVirtual.vertex[chosenVertex][0], backupMappedVertices[chosenVertex]);
+        for possibleVertex in candidateVertices:
             
-            # iterate over every possible physical vertex to allocate this virtual
-            success = False; 
-            candidateVertices = gPhysical.getCapableVertices(gVirtual.vertex[chosenVertex][0], backupMappedVertices[chosenVertex]);
-            for possibleVertex in candidateVertices:
+            success = True;
+            # for each adjacent virtual edge of the chosen vertex, try to establish a physical path
+            for neighborVertex in gVirtual.edge[chosenVertex].keys():
+                virtualEdge = (chosenVertex, neighborVertex);
+                edgeDemand = gVirtual.edge[chosenVertex][neighborVertex][0];
                 
                 candidatePaths = gPhysical.getCapablePaths(possibleVertex, backupMappedVertices[neighborVertex], edgeDemand);
                 if len(candidatePaths) > 0:
@@ -218,11 +218,13 @@ def findNeighbor(originalSolution, originalGPhysical, gVirtual, numOfTries):
                         backupMappedVertices[neighborVertex],
                         newPath
                     );
-                    success = True;
+                else:
+                    # couldn't find a path for every adjacent vertex
+                    success = False;
                     break;
             #end for
             
-            if not success:
+            if success:
                 break;
         #end for
         if success:
@@ -246,9 +248,10 @@ def initialTemperature(solution, gPhysical, gVirtual, numOfIterations):
                 maxVariation = variation;
     #end for
     
-    return -maxVariation / (log(0.9));
+    return -maxVariation / (log(0.8));
 
 def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInner, iterMinSuccess, alphaCooler):
+    min=solution.totalUsedBand(gVirtual);
     numOfTriesNeighborhood = (len(gVirtual.setOfEdges) / 2);
     temperature = initialTemperature(solution, gPhysical, gVirtual, int(iterMaxOutter));
     
@@ -263,42 +266,86 @@ def simmulatedAnnealing(solution, gPhysical, gVirtual, iterMaxOutter, iterMaxInn
                 newGraph = neighbor[1];
             
                 variation = newSolution.totalUsedBand(gVirtual) - solution.totalUsedBand(gVirtual);
+                if variation < 0:
+                    successCount += 1;
                 if variation <= 0 or exp(-variation / temperature) > random.random():
                     solution = newSolution;
                     gPhysical = newGraph;
-                    successCount += 1;
+                    if newSolution.totalUsedBand(gVirtual) < min:
+                        min = newSolution.totalUsedBand(gVirtual);
         #end inner for
         
         temperature *= alphaCooler;
-        print(temperature);
-        print(solution.totalUsedBand(gVirtual));
+        print('Temperature=',temperature);
+        print('Current Solution=', solution.totalUsedBand(gVirtual));
+        print('Minimum=',min);
         j += 1;
         if successCount < iterMinSuccess:
             break;
     
     return solution;
 
+def algorithmParameters():
+    default = [
+       'solution.txt',  # solution output
+       'rand1',         # problem instance folder (inside data folder)
+       1000,            # outer loop iteration limit
+       300,             # inner loop iteration limit
+       10,              # without improve iteration limit
+       0.99             # alpha cooler
+    ];
+    i=0;
+    firstLoop = True;
+    for arg in sys.argv:
+        if not firstLoop:
+            default[i] = arg;
+            i += 1;
+        else:
+            firstLoop = False;
+    
+    return default;
+    
+
 if __name__ == '__main__':
-    virtual = Graph('../data/rand1/vir.gtt');
-    physical = Graph('../data/rand1/sub.gtt');
     
-    print(virtual.edge);
-    #solution = inicializeSolution(physical, virtual);
+    (outputFilename, instance, outerIter, innerIter, minSuccessIter, alpha) = algorithmParameters()
+
+    virtual = Graph('../data/'+instance+'/vir.gtt');
+    physical = Graph('../data/'+instance+'/sub.gtt');
     
-    solution = VirtualNetworkMapping();
+    # DEBUG:
+    '''solution = VirtualNetworkMapping();
     vertices = {'7': '19', '1': '34', '5': '26', '2': '30', '9': '42', '4': '21', '8': '47', '6': '2', '3': '20', '0': '14'};
     edges = {('5', '1'): ['34', '6', '20', '49', '26'], ('0', '8'): ['14', '47'], ('3', '6'): ['20', '6', '25', '31', '13', '2'], ('6', '3'): ['20', '6', '25', '31', '13', '2'], ('2', '4'): ['30', '10', '21'], ('7', '6'): ['2', '46', '43', '10', '19'], ('2', '5'): ['30', '46', '8', '26'], ('4', '2'): ['30', '10', '21'], ('6', '1'): ['34', '24', '2'], ('8', '0'): ['14', '47'], ('1', '5'): ['34', '6', '20', '49', '26'], ('1', '9'): ['34', '6', '20', '0', '15', '42'], ('9', '1'): ['34', '6', '20', '0', '15', '42'], ('6', '7'): ['2', '46', '43', '10', '19'], ('5', '2'): ['30', '46', '8', '26'], ('8', '5'): ['26', '23', '40', '47'], ('5', '8'): ['26', '23', '40', '47'], ('1', '6'): ['34', '24', '2']};
     for k,path in edges.items():
         addPartOfSolution(solution, physical, k, virtual.edge[k[0]][k[1]][0], vertices[k[0]], vertices[k[1]], path);
     
-    print(solution);
     if solution != None:
         print(solution.vertex);
-        print(solution.edge);
+        print(solution.edge);'''
     
-    print("initial: "+str(solution.totalUsedBand(virtual)));
-    solution = simmulatedAnnealing(solution, physical, virtual, 500, 100, 10, 0.99);
-    print("final: "+str(solution.totalUsedBand(virtual)));
-    print(solution.vertex);
-    print(solution.edge);
+    print('Output File Name: ',outputFilename);
+    print('Instance Name: ',instance);
+    print();
+    print('Initializing ...');
+    solution = inicializeSolution(physical, virtual);
+    
+    if solution == None:
+        print('Could not find a feasible solution');
+    else:
+        print('Starting Optimization ({}) ...'.format(datetime.datetime.now()));    
+        print('Outer Iterations: ',outerIter);
+        print('Inner Iterations: ',innerIter);
+        print('Minimum Successful Iterations: ',minSuccessIter);
+        print('Alpha Cooler: ',alpha);
+        print("Initial Value: "+str(solution.totalUsedBand(virtual)));
+        
+        solution = simmulatedAnnealing(solution, physical, virtual, outerIter, innerIter, minSuccessIter, alpha);
+        
+        print('Optimization Ended ({}) ...'.format(datetime.datetime.now()));
+        print("Final Value: "+str(solution.totalUsedBand(virtual)));
+        
+        out = open(outputFilename, 'w');
+        out.write(str(solution.vertex));
+        out.write(str(solution.edge));
     

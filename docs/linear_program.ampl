@@ -16,7 +16,6 @@ var a {edge_s} >= 0;
 var b {edge_v, vertex_s} binary;
 var r {vertex_s, vertex_v} binary;
 var l {edge_s, edge_v} binary;
-var x {vertex_s, vertex_s} binary;
 var N {edge_v, vertex_s} binary;
 
 # Objective Function
